@@ -38,7 +38,7 @@ except ImportError:
 
 import dateutil.parser
 
-from tornado.gen import coroutine, multi
+from tornado.gen import multi
 from tornado.locks import Semaphore
 from tornado.log import app_log
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
@@ -79,8 +79,7 @@ def format_td(td):
         h=h, m=m, s=s)
 
 
-@coroutine
-def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0, concurrency=10):
+async def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0, concurrency=10):
     """Shutdown idle single-user servers
 
     If cull_users, inactive *users* will be deleted as well.
@@ -97,23 +96,18 @@ def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0, concu
 
     if concurrency:
         semaphore = Semaphore(concurrency)
-        @coroutine
-        def fetch(req):
+        async def fetch(req):
             """client.fetch wrapped in a semaphore to limit concurrency"""
-            yield semaphore.acquire()
-            try:
-                return (yield client.fetch(req))
-            finally:
-                yield semaphore.release()
+            async with semaphore:
+                return (await client.fetch(req))
     else:
         fetch = client.fetch
 
-    resp = yield fetch(req)
+    resp = await fetch(req)
     users = json.loads(resp.body.decode('utf8', 'replace'))
     futures = []
 
-    @coroutine
-    def handle_server(user, server_name, server):
+    async def handle_server(user, server_name, server):
         """Handle (maybe) culling a single server
 
         Returns True if server is now stopped (user removable),
@@ -186,7 +180,7 @@ def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0, concu
             method='DELETE',
             headers=auth_header,
         )
-        resp = yield fetch(req)
+        resp = await fetch(req)
         if resp.code == 202:
             app_log.warning(
                 "Server %s is slow to stop",
@@ -196,8 +190,7 @@ def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0, concu
             return False
         return True
 
-    @coroutine
-    def handle_user(user):
+    async def handle_user(user):
         """Handle one user.
 
         Create a list of their servers, and async exec them.  Wait for
@@ -226,7 +219,7 @@ def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0, concu
             handle_server(user, server_name, server)
             for server_name, server in servers.items()
         ]
-        results = yield multi(server_futures)
+        results = await multi(server_futures)
         if not cull_users:
             return
         # some servers are still running, cannot cull users
@@ -282,7 +275,7 @@ def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0, concu
             method='DELETE',
             headers=auth_header,
         )
-        yield fetch(req)
+        await fetch(req)
         return True
 
     for user in users:
@@ -290,7 +283,7 @@ def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0, concu
 
     for (name, f) in futures:
         try:
-            result = yield f
+            result = await f
         except Exception:
             app_log.exception("Error processing %s", name)
         else:
