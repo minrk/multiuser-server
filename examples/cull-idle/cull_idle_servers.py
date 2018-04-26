@@ -26,6 +26,7 @@ Or run it manually by generating an API token and storing it in `JUPYTERHUB_API_
     python3 cull_idle_servers.py [--timeout=900] [--url=http://127.0.0.1:8081/hub/api]
 """
 
+import asyncio
 from datetime import datetime, timezone
 from functools import partial
 import json
@@ -38,7 +39,7 @@ except ImportError:
 
 import dateutil.parser
 
-from tornado.gen import multi
+from tornado import gen
 from tornado.locks import Semaphore
 from tornado.log import app_log
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
@@ -219,7 +220,7 @@ async def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0,
             handle_server(user, server_name, server)
             for server_name, server in servers.items()
         ]
-        results = await multi(server_futures)
+        results = await gen.multi(server_futures)
         if not cull_users:
             return
         # some servers are still running, cannot cull users
@@ -279,7 +280,12 @@ async def cull_idle(url, api_token, inactive_limit, cull_users=False, max_age=0,
         return True
 
     for user in users:
-        futures.append((user['name'], handle_user(user)))
+        futures.append((
+            user['name'],
+            asyncio.ensure_future(handle_user(user)),
+        ))
+        # yield here to allow the request to begin processing
+        await asyncio.sleep(0)
 
     for (name, f) in futures:
         try:
