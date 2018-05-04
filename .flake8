@@ -3,6 +3,7 @@
 # E: style errors
 # W: style warnings
 # C: complexity
+# D: docstrings
 # F401: module imported but unused
 # F403: import *
 # F811: redefinition of unused `name` from line `N`
@@ -10,7 +11,7 @@
 # E402: module level import not at top of file
 # I100: Import statements are in the wrong order
 # I101: Imported names are in the wrong order. Should be
-ignore = E, C, W, F401, F403, F811, F841, E402, I100, I101
+ignore = E, C, D, W, F401, F403, F811, F841, E402, I100, I101
 
 exclude =
     .cache,
