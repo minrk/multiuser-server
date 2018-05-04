@@ -41,7 +41,11 @@ script:
   - |
     # run tests
     set -e
-    pytest -v --maxfail=2 --cov=jupyterhub jupyterhub/tests
+    if [[ $TEST == lint ]]; then
+      flake8 .
+    else
+      pytest -v --maxfail=2 --cov=jupyterhub jupyterhub/tests
+    fi
   - |
     # build docs
     pushd docs
@@ -54,6 +58,8 @@ after_success:
 matrix:
   fast_finish: true
   include:
+    - python: 3.6
+      env: TEST=lint
     - python: 3.6
       env: JUPYTERHUB_TEST_SUBDOMAIN_HOST=http://localhost.jovyan.org:8000
     - python: 3.6
