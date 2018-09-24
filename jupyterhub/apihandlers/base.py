@@ -275,6 +275,6 @@ class API404(APIHandler):
 
     Ensures JSON 404 errors for malformed URLs
     """
-    async def prepare(self):
-        await super().prepare()
+    def prepare(self):
+        super().prepare()
         raise web.HTTPError(404)
