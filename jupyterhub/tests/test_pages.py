@@ -374,6 +374,7 @@ async def test_spawn_pending(app, username, slow_spawn):
 
 
 async def test_user_redirect(app, username):
+    sys.stderr.flush()
     name = username
     cookies = await app.login_user(name)
 
@@ -391,10 +392,14 @@ async def test_user_redirect(app, username):
     r.raise_for_status()
     print(urlparse(r.url))
     path = urlparse(r.url).path
+    i = 0
     while '/spawn-pending/' in path:
+        i += 1
         await asyncio.sleep(0.1)
         r = await get_page(r.url, app, cookies=cookies)
         path = urlparse(r.url).path
+        print(i, path, r.url)
+        sys.stderr.flush()
     assert path == ujoin(app.base_url, '/user/%s/notebooks/test.ipynb' % name)
 
 
