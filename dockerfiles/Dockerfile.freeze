@@ -1,0 +1,17 @@
+# build and run me to generate a new requirements.txt
+# for the jupyterhub/jupyterhub image
+# usage:
+# docker build -t jupyterhub-freeze . -f dockerfiles/Dockerfile.freeze
+# docker run --rm -it jupyterhub-freeze > dockerfiles/requirements.txt
+
+ARG UBUNTU_VERSION=18.04
+FROM ubuntu:$UBUNTU_VERSION
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get -y update && \
+    apt-get -y upgrade && \
+    apt-get -y install --no-install-recommends python3-wheel python3-pip python3-setuptools nodejs npm
+
+ADD . /src/jupyterhub
+WORKDIR /src/jupyterhub
+RUN python3 -m pip install --no-cache .
+CMD sh -c "python3 -m pip freeze | grep -v jupyterhub"

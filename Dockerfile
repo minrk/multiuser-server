@@ -21,40 +21,44 @@
 # your jupyterhub_config.py will be added automatically
 # from your docker directory.
 
-FROM ubuntu:18.04
-LABEL maintainer="Jupyter Project <jupyter@googlegroups.com>"
+# multi-stage build
+# first stage: build wheel
+ARG UBUNTU_VERSION=18.04
+FROM ubuntu:$UBUNTU_VERSION
+ENV DEBIAN_FRONTEND noninteractive
+RUN apt-get -y update && \
+    apt-get -y upgrade && \
+    apt-get -y install --no-install-recommends python3-wheel python3-pip python3-setuptools nodejs npm
+
+ADD . /src/jupyterhub
+WORKDIR /src/jupyterhub
+RUN python3 -m pip wheel -v --no-deps .
+
+FROM ubuntu:$UBUNTU_VERSION
 
 # install nodejs, utf8 locale, set CDN because default httpredir is unreliable
 ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -y update && \
     apt-get -y upgrade && \
-    apt-get -y install wget git bzip2 && \
+    apt-get -y install --no-install-recommends python3-setuptools python3-pip nodejs npm && \
     apt-get purge && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
 ENV LANG C.UTF-8
+COPY --from=0 /src/jupyterhub/jupyterhub*.whl /src/jupyterhub/
+COPY dockerfiles/requirements.txt /src/jupyterhub/requirements.txt
+RUN python3 -m pip install --no-cache /src/jupyterhub/jupyterhub*.whl -r /src/jupyterhub/requirements.txt
 
-# install Python + NodeJS with conda
-RUN wget -q https://repo.continuum.io/miniconda/Miniconda3-4.5.11-Linux-x86_64.sh -O /tmp/miniconda.sh  && \
-    echo 'e1045ee415162f944b6aebfe560b8fee */tmp/miniconda.sh' | md5sum -c - && \
-    bash /tmp/miniconda.sh -f -b -p /opt/conda && \
-    /opt/conda/bin/conda install --yes -c conda-forge \
-      python=3.6 sqlalchemy tornado jinja2 traitlets requests pip pycurl \
-      nodejs configurable-http-proxy && \
-    /opt/conda/bin/pip install --upgrade pip && \
-    rm /tmp/miniconda.sh
-ENV PATH=/opt/conda/bin:$PATH
-
-ADD . /src/jupyterhub
-WORKDIR /src/jupyterhub
-
-RUN pip install . && \
-    rm -rf $PWD ~/.cache ~/.npm
+ARG CHP_VERSION=4.1.*
+RUN npm install -g configurable-http-proxy@${CHP_VERSION} && \
+    rm -rf ~/.npm
 
 RUN mkdir -p /srv/jupyterhub/
+COPY dockerfiles/jupyterhub_config.py /srv/jupyterhub/jupyterhub_config.py
+
 WORKDIR /srv/jupyterhub/
 EXPOSE 8000
-
 LABEL org.jupyter.service="jupyterhub"
-
+LABEL maintainer="Jupyter Project <jupyter@googlegroups.com>"
 CMD ["jupyterhub"]
