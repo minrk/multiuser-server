@@ -87,15 +87,11 @@ jobs:
         #       values by instead duplicating the name to signal true.
         include:
           - python: "3.6"
-            subdomain: subdomain
+            subdomain: true
           - python: "3.7"
-            db: mysql
+            subdomain: true
           - python: "3.8"
-            db: postgres
-          - python: "3.8"
-            jupyter_server: jupyter_server
-          - python: "3.9"
-            main_dependencies: main_dependencies
+            subdomain: true
 
     steps:
       # This is how you set an environment variable in a GitHub workflow that
